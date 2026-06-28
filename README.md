@@ -4,7 +4,7 @@ A secure, modern Remote Desktop Connection Manager for Windows. Nexus RDP lets y
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)
-![License](https://img.shields.io/badge/License-Private-lightgrey)
+![License](https://img.shields.io/badge/License-GPL--3.0-blue)
 
 [![Ko-fi](https://img.shields.io/badge/☕_Buy_Me_a_Coffee-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/netanelelhadad)
 [![Support](https://img.shields.io/badge/❤️_Support_This_Project-FF5E5B?style=for-the-badge)](https://ko-fi.com/netanelelhadad)
