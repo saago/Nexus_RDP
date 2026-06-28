@@ -18,20 +18,20 @@
 
 import sys
 
-# 1. יצירת אובייקט ריק להדפסות למניעת קריסה ב-noconsole
+# 1. Create a dummy object for print outputs to prevent crashes in noconsole mode
 class DummyWriter:
     def write(self, *args, **kwargs):
         pass
     def flush(self):
         pass
 
-# 2. החלפת אפיקי ההדפסה לאובייקט הריק (חייב לקרות לפני הייבוא של CTK!)
+# 2. Redirect print streams to the empty object (Must happen before CTK import!)
 if sys.stdout is None:
     sys.stdout = DummyWriter()
 if sys.stderr is None:
     sys.stderr = DummyWriter()
 
-# 3. רק עכשיו מייבאים את שאר הספריות!
+# 3. Only now import the rest of the libraries!
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox
@@ -42,7 +42,7 @@ from cryptography.fernet import Fernet
 import hashlib
 import secrets
 
-# --- הגדרות עיצוב ---
+# --- Styling Settings ---
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -51,7 +51,7 @@ DATA_FILE = "rdp_connections.json"
 CONFIG_FILE = "config.json"
 
 
-# --- לוגיקה של אבטחה: הצפנת נתונים (Fernet) ---
+# --- Security Logic: Data Encryption (Fernet) ---
 def load_or_create_key():
     if not os.path.exists(KEY_FILE):
         key = Fernet.generate_key()
@@ -72,7 +72,7 @@ def decrypt_password(encrypted_password):
     return cipher_suite.decrypt(encrypted_password.encode()).decode()
 
 
-# --- לוגיקה של אבטחה: סיסמת מאסטר (Hash) ---
+# --- Security Logic: Master Password (Hash) ---
 def hash_password(password, salt=None):
     if salt is None:
         salt = secrets.token_hex(16)
@@ -101,7 +101,7 @@ def verify_master_password(password):
     return pwd_hash == stored_hash
 
 
-# --- ניהול נתונים ---
+# --- Data Management ---
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
@@ -114,7 +114,7 @@ def save_data(data):
         json.dump(data, f, indent=4)
 
 
-# --- חלון אימות (Master Password) ---
+# --- Authentication Window (Master Password) ---
 class AuthWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -144,7 +144,7 @@ class AuthWindow(ctk.CTk):
             messagebox.showerror("Error", "Password cannot be empty.")
             return
 
-        # שימוש ב-quit כדי לא להקריס לולאות רקע
+        # Using quit() to avoid crashing background event loops
         if self.first_run:
             save_master_password(password)
             self.authenticated = True
@@ -158,7 +158,7 @@ class AuthWindow(ctk.CTk):
                 self.pass_entry.delete(0, tk.END)
 
 
-# --- חלון דיאלוג להוספה/עריכה ---
+# --- Connection Add/Edit Dialog Window ---
 class ConnectionDialog(ctk.CTkToplevel):
     def __init__(self, parent, title, initial_data=None):
         super().__init__(parent)
@@ -210,7 +210,7 @@ class ConnectionDialog(ctk.CTkToplevel):
         self.destroy()
 
 
-# --- חלון ראשי - תצוגה קומפקטית ---
+# --- Main Window - Compact View ---
 class RDPApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -304,15 +304,15 @@ class RDPApp(ctk.CTk):
         encrypted_password = info.get("password", "")
 
         try:
-            # הזרקת הסיסמה רק אם היא קיימת (חיבור רגיל)
+            # Inject password via cmdkey only if it exists (Standard connection setup)
             if encrypted_password:
                 password = decrypt_password(encrypted_password)
                 subprocess.run(["cmdkey", f"/generic:TERMSRV/{ip}", f"/user:{user}", f"/pass:{password}"], capture_output=True)
 
-            # הפעלה עם /control לתמיכה בכרטיס חכם
+            # Launch mstsc with /control flag for Smart Card redirection support
             subprocess.Popen(["mstsc", f"/v:{ip}", "/control"])
 
-            # מחיקה מהזיכרון רק אם הוזרקה סיסמה
+            # Delete the credentials cache entry after 5 seconds if a password was injected
             if encrypted_password:
                 self.after(5000, lambda: subprocess.run(["cmdkey", f"/delete:TERMSRV/{ip}"], capture_output=True))
 
@@ -320,12 +320,12 @@ class RDPApp(ctk.CTk):
             messagebox.showerror("Error", f"Failed to connect: {e}")
 
 
-# --- הפעלת התוכנה ---
+# --- Application Entry Point ---
 if __name__ == "__main__":
     auth_app = AuthWindow()
     auth_app.mainloop()
 
-    # סגירה נקייה של חלון ה-Auth רק לאחר שהלולאה שלו הסתיימה
+    # Clean termination of the Auth window only after its main loop finishes execution
     if auth_app.authenticated:
         auth_app.destroy()
         app = RDPApp()
