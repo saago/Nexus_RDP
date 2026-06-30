@@ -77,14 +77,11 @@ On first launch you will be prompted to set a **master password**. This password
 ```
 RDP/
 ├── Nexus_RDP_v4.1.py       # Latest version — main application entry point
-├── Nexus_RDP.py             # Previous version (compact UI with smart card support)
-├── RDP_Manager.py           # Original version (sidebar layout)
 ├── Nexus_RDP_v4.1.spec      # PyInstaller spec for building a standalone .exe
 ├── config.json              # Master password hash & salt (auto-generated)
 ├── secret.key               # Fernet encryption key (auto-generated)
 ├── rdp_connections.json     # Encrypted connection data (auto-generated at runtime)
 ├── icon.ico                 # Application icon (used by PyInstaller)
-├── icon.png                 # High-resolution application icon
 └── README.md                # This file
 ```
 
@@ -92,10 +89,16 @@ RDP/
 
 ## 🔨 Building a Standalone Executable
 
-A PyInstaller `.spec` file is included for compiling the app into a single `.exe`:
+A PyInstaller command can be used to compile the app into a single `.exe`:
 
 ```bash
 pip install pyinstaller
+pyinstaller --onefile --icon="icon.ico" --noconsole .\Nexus_RDP_v4.1.py
+```
+
+Alternatively, a `.spec` file is included for building:
+
+```bash
 pyinstaller Nexus_RDP_v4.1.spec
 ```
 
@@ -109,8 +112,6 @@ The compiled executable will be placed in the `dist/` folder. It bundles all Cus
 
 | Version | File | Highlights |
 |---|---|---|
-| **v1.0** | `RDP_Manager.py` | Initial release — sidebar layout, full credential requirement. |
-| **v2.0** | `Nexus_RDP.py` | Compact card-based UI, smart card support (`/control`), optional credentials, credit footer. |
 | **v4.1** | `Nexus_RDP_v4.1.py` | Stability fix — safe `stdout`/`stderr` handling for `--noconsole` mode, clean `quit()` flow for Auth window. |
 
 ---
