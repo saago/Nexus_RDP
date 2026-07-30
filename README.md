@@ -118,4 +118,4 @@ The compiled executable will be placed in the `dist/` folder. It bundles all Cus
 
 ## 👥 Authors
 
-Created by **Meir Asulin** & **Netanel Elhadad**
+Created by **Netanel Elhadad**
