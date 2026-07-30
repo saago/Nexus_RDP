@@ -1,6 +1,6 @@
 # ============================================================================
 # Nexus RDP - Secure Remote Desktop Connection Manager
-# Copyright (c) 2026 Netanel Elhadad & Meir Asulin
+# Copyright (c) 2026 Netanel Elhadad
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,12 +18,15 @@
 
 import sys
 
+
 # 1. Create a dummy object for print outputs to prevent crashes in noconsole mode
 class DummyWriter:
     def write(self, *args, **kwargs):
         pass
+
     def flush(self):
         pass
+
 
 # 2. Redirect print streams to the empty object (Must happen before CTK import!)
 if sys.stdout is None:
@@ -135,7 +138,8 @@ class AuthWindow(ctk.CTk):
         self.auth_btn = ctk.CTkButton(self, text=btn_text, command=self.authenticate)
         self.auth_btn.pack(pady=20)
 
-        self.credit_label = ctk.CTkLabel(self, text="Created by Meir Asulin & Netanel Elhadad", font=("Arial", 12), text_color="gray")
+        self.credit_label = ctk.CTkLabel(self, text="Created by Netanel Elhadad", font=("Arial", 12),
+                                         text_color="gray")
         self.credit_label.pack(side="bottom", pady=10)
 
     def authenticate(self):
@@ -144,7 +148,6 @@ class AuthWindow(ctk.CTk):
             messagebox.showerror("Error", "Password cannot be empty.")
             return
 
-        # Using quit() to avoid crashing background event loops
         if self.first_run:
             save_master_password(password)
             self.authenticated = True
@@ -165,6 +168,7 @@ class ConnectionDialog(ctk.CTkToplevel):
         self.title(title)
         self.geometry("350x450")
         self.result = None
+        self.original_name = None
         self.after(10, self.focus_force)
 
         ctk.CTkLabel(self, text=title, font=("Arial", 20, "bold")).pack(pady=20)
@@ -183,8 +187,13 @@ class ConnectionDialog(ctk.CTkToplevel):
 
         if initial_data:
             name, info = initial_data
+            self.original_name = name if title == "Edit Connection" else None
+
             self.name_entry.insert(0, name)
-            self.name_entry.configure(state="disabled")
+            # Disable name editing only if we are editing an existing connection, not duplicating
+            if title == "Edit Connection":
+                self.name_entry.configure(state="disabled")
+
             self.ip_entry.insert(0, info["ip"])
             if info["username"]:
                 self.user_entry.insert(0, info["username"])
@@ -205,7 +214,6 @@ class ConnectionDialog(ctk.CTkToplevel):
             return
 
         encrypted_pass = encrypt_password(password) if password else ""
-
         self.result = (name, {"ip": ip, "username": user, "password": encrypted_pass})
         self.destroy()
 
@@ -215,7 +223,8 @@ class RDPApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Nexus RDP")
-        self.geometry("450x580")
+        # Increased width slightly to accommodate new buttons
+        self.geometry("550x580")
         self.connections = load_data()
 
         self.grid_columnconfigure(0, weight=1)
@@ -226,7 +235,8 @@ class RDPApp(ctk.CTk):
         self.top_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(self.top_frame, text="NEXUS RDP", font=("Arial", 22, "bold")).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(self.top_frame, text="+ Add", width=80, command=self.add_connection).grid(row=0, column=1, sticky="e")
+        ctk.CTkButton(self.top_frame, text="+ Add", width=80, command=self.add_connection).grid(row=0, column=1,
+                                                                                                sticky="e")
 
         self.scrollable_frame = ctk.CTkScrollableFrame(self)
         self.scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 10))
@@ -241,7 +251,8 @@ class RDPApp(ctk.CTk):
         self.appearance_menu.pack(side="right")
         ctk.CTkLabel(self.bottom_frame, text="Theme:", font=("Arial", 12)).pack(side="right", padx=10)
 
-        self.credit_label = ctk.CTkLabel(self, text="Created by Meir Asulin & Netanel Elhadad", font=("Arial", 12), text_color="gray")
+        self.credit_label = ctk.CTkLabel(self, text="Created by Netanel Elhadad", font=("Arial", 12),
+                                         text_color="gray")
         self.credit_label.grid(row=3, column=0, pady=(0, 10))
 
         self.refresh_ui()
@@ -259,25 +270,85 @@ class RDPApp(ctk.CTk):
             info_frame.grid(row=0, column=0, sticky="w", padx=15, pady=10)
 
             ctk.CTkLabel(info_frame, text=name, font=("Arial", 15, "bold")).pack(anchor="w")
-            ctk.CTkLabel(info_frame, text=info["ip"], font=("Arial", 12), text_color="gray").pack(anchor="w", pady=(2, 0))
+            ctk.CTkLabel(info_frame, text=info["ip"], font=("Arial", 12), text_color="gray").pack(anchor="w",
+                                                                                                  pady=(2, 0))
 
             btn_frame = ctk.CTkFrame(card, fg_color="transparent")
             btn_frame.grid(row=0, column=1, sticky="e", padx=10)
 
-            ctk.CTkButton(btn_frame, text="Connect", width=70, height=28, fg_color="#28a745", hover_color="#218838",
-                          command=lambda n=name: self.connect(n)).pack(side="left", padx=4)
+            # --- Order Arrows Frame ---
+            order_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
+            order_frame.pack(side="left", padx=(0, 10))
 
-            ctk.CTkButton(btn_frame, text="Edit", width=50, height=28, fg_color="#ffc107", text_color="black", hover_color="#e0a800",
-                          command=lambda n=name: self.edit_connection(n)).pack(side="left", padx=4)
+            ctk.CTkButton(order_frame, text="▲", width=25, height=14, fg_color="#6c757d", hover_color="#5a6268",
+                          command=lambda n=name: self.move_up(n)).pack(pady=(0, 2))
+            ctk.CTkButton(order_frame, text="▼", width=25, height=14, fg_color="#6c757d", hover_color="#5a6268",
+                          command=lambda n=name: self.move_down(n)).pack()
+            # --------------------------
 
-            ctk.CTkButton(btn_frame, text="X", width=30, height=28, fg_color="#dc3545", hover_color="#c82333",
-                          command=lambda n=name: self.delete_connection(n)).pack(side="left", padx=4)
+            ctk.CTkButton(btn_frame, text="Connect", width=70, height=30, fg_color="#28a745", hover_color="#218838",
+                          command=lambda n=name: self.connect(n)).pack(side="left", padx=3)
 
+            ctk.CTkButton(btn_frame, text="Dup", width=45, height=30, fg_color="#17a2b8", hover_color="#138496",
+                          command=lambda n=name: self.duplicate_connection(n)).pack(side="left", padx=3)
+
+            ctk.CTkButton(btn_frame, text="Edit", width=45, height=30, fg_color="#ffc107", text_color="black",
+                          hover_color="#e0a800",
+                          command=lambda n=name: self.edit_connection(n)).pack(side="left", padx=3)
+
+            ctk.CTkButton(btn_frame, text="X", width=30, height=30, fg_color="#dc3545", hover_color="#c82333",
+                          command=lambda n=name: self.delete_connection(n)).pack(side="left", padx=3)
+
+    # --- Connection Order Methods ---
+    def move_up(self, name):
+        keys = list(self.connections.keys())
+        idx = keys.index(name)
+        if idx > 0:
+            keys[idx - 1], keys[idx] = keys[idx], keys[idx - 1]
+            self.connections = {k: self.connections[k] for k in keys}
+            save_data(self.connections)
+            self.refresh_ui()
+
+    def move_down(self, name):
+        keys = list(self.connections.keys())
+        idx = keys.index(name)
+        if idx < len(keys) - 1:
+            keys[idx + 1], keys[idx] = keys[idx], keys[idx + 1]
+            self.connections = {k: self.connections[k] for k in keys}
+            save_data(self.connections)
+            self.refresh_ui()
+
+    def duplicate_connection(self, name):
+        new_name = f"{name} - Copy"
+        counter = 1
+        # Validate that the duplicated name doesn't already exist
+        while new_name in self.connections:
+            new_name = f"{name} - Copy ({counter})"
+            counter += 1
+
+        original_data = self.connections[name].copy()
+
+        dialog = ConnectionDialog(self, "Duplicate Connection", (new_name, original_data))
+        self.wait_window(dialog)
+
+        if dialog.result:
+            final_name, data = dialog.result
+            if final_name in self.connections:
+                messagebox.showerror("Error", f"Connection '{final_name}' already exists.")
+                return
+            self.connections[final_name] = data
+            save_data(self.connections)
+            self.refresh_ui()
+
+    # --- Original Methods ---
     def add_connection(self):
         dialog = ConnectionDialog(self, "Add Connection")
         self.wait_window(dialog)
         if dialog.result:
             name, data = dialog.result
+            if name in self.connections:
+                messagebox.showerror("Error", f"Connection '{name}' already exists.")
+                return
             self.connections[name] = data
             save_data(self.connections)
             self.refresh_ui()
@@ -304,15 +375,13 @@ class RDPApp(ctk.CTk):
         encrypted_password = info.get("password", "")
 
         try:
-            # Inject password via cmdkey only if it exists (Standard connection setup)
             if encrypted_password:
                 password = decrypt_password(encrypted_password)
-                subprocess.run(["cmdkey", f"/generic:TERMSRV/{ip}", f"/user:{user}", f"/pass:{password}"], capture_output=True)
+                subprocess.run(["cmdkey", f"/generic:TERMSRV/{ip}", f"/user:{user}", f"/pass:{password}"],
+                               capture_output=True)
 
-            # Launch mstsc with /control flag for Smart Card redirection support
             subprocess.Popen(["mstsc", f"/v:{ip}", "/control"])
 
-            # Delete the credentials cache entry after 5 seconds if a password was injected
             if encrypted_password:
                 self.after(5000, lambda: subprocess.run(["cmdkey", f"/delete:TERMSRV/{ip}"], capture_output=True))
 
@@ -325,7 +394,6 @@ if __name__ == "__main__":
     auth_app = AuthWindow()
     auth_app.mainloop()
 
-    # Clean termination of the Auth window only after its main loop finishes execution
     if auth_app.authenticated:
         auth_app.destroy()
         app = RDPApp()
